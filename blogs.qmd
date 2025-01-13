@@ -1,0 +1,7 @@
+---
+title: "Blogs"
+toc: false
+about:
+  template: jolla
+
+---

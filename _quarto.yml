@@ -3,18 +3,36 @@ project:
   output-dir: docs
 
 website:
-  title: "zoezhouj.github.io"
+  title: "Zoe Zhou"
+  favicon: media/logo.png
   navbar:
-    left:
+    title: false
+    logo: media/logo.png
+    logo-alt: "Jiarui Zoe Zhou"
+    right:
       - href: index.qmd
         text: Home
       - about.qmd
-
+      - blogs.qmd
+      - href: photography.qmd
+        text: Gallery
+      - href: media/resume.pdf
+        text: Resume
+      - icon: github
+        href: https://github.com/ZoeZhouJ
+        target: _blank
+  page-footer:
+    background: light
+    left: Copyright 2025, Zoe Zhou
+    right: This website is built with {{< fa heart title="a heart" >}}, [{{< fa brands github title="GitHub octocat logo" >}}](https://github.com/zoezhouj/zoezhouj.github.io){target=_blank}, [{{< fa brands r-project title="R Project" >}}](https://www.r-project.org/about.html){target=_blank} and [Quarto](https://quarto.org/){target=_blank}
 format:
   html:
-    theme: cosmo
-    css: styles.css
+    theme: 
+      - Simplex
+      - style.scss
+    mainfont: Mulish
     toc: true
+    page-layout: full
 
 
 

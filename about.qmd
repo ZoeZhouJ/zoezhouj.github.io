@@ -2,4 +2,10 @@
 title: "About"
 ---
 
-About this site
+#### This site is a reflection of my passions—a space where science meets creativity. Here, you’ll find:
+
+#### - Projects where I unravel patterns and tell stories hidden in data.
+#### - A Photography Gallery filled with snapshots of natural beauty and candid moments.
+#### - Insights into my journey, aspirations, and maybe even a few experiments (both in data and life).
+
+#### Whether you’re here for inspiration, collaboration, or simply to wander, I’m excited to have you along for the ride.

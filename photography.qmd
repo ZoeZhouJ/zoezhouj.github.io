@@ -1,0 +1,9 @@
+---
+title: "The Lens Narrative"
+toc: false
+about:
+  template: jolla
+  image-shape: rounded
+  image-width: 30em
+image: media/moss.JPG
+---
