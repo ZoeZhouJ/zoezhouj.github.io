@@ -1,0 +1,19 @@
+# options specified here will apply to all posts in this folder
+
+# re-render posts only when a change to the source file is made ----
+freeze: auto
+
+# enable banner style title blocks ----
+title-block-banner: false
+
+author:
+  - name: Zoe Zhou
+    url: https://zoezhouj.github.io/
+    affiliation: Master of Environmental Science and Management Program @ The Bren School (UCSB) 
+    affiliation-url: https://bren.ucsb.edu/about 
+
+toc: true
+toc-depth: 3
+
+page-layout: article
+
