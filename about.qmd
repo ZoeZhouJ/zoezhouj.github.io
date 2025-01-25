@@ -1,15 +1,8 @@
 ---
 title: "About"
-format: html
-output:
-  html:
-    theme: cosmo
-    css: styles.css
-    self-contained: true
-  
 #toc: false
+image: media/headshot.png
 about:
-  image: media/headshot.png
   template: jolla
   image-shape: round
   image-width: 17em

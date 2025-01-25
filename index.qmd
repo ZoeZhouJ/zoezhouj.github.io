@@ -1,8 +1,8 @@
 ---
 # title: "Zoe Zhou"
 title: "Welcome to My Corner of Data & Creativity"
-image: media/headshot.png
-toc: false
+image: media/headshot.png 
+#toc: false
 about:
   template: jolla
   image-shape: round
