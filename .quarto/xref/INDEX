@@ -4,5 +4,14 @@
   },
   "about.qmd": {
     "about.html": "64c9d8e5"
+  },
+  "photography.qmd": {
+    "photography.html": "df7805aa"
+  },
+  "blogs.qmd": {
+    "blogs.html": "66f1d874"
+  },
+  "posts/2025-01-24-wildfire-analysis/index.ipynb": {
+    "index.html": "bc122182"
   }
 }
