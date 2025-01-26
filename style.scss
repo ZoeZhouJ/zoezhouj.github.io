@@ -1,6 +1,6 @@
 /*-- scss:defaults --*/
 // Import font
-@import url('https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,200..1000;1,200..1000&family=Philosopher:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,200..1000;1,200..1000&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Philosopher:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 // Colors
 $orange: #e73213;
@@ -9,14 +9,16 @@ $grey: #eaebea;
 $cream: #efe6d5;
 $black: #0c0e0c;
 $white: #FFFFFF;
+$dark: #566B74;
 
 // Base document colors
-$navbar-bg: $white; // navbar
-$navbar-fg: $black; // navbar foreground elements
-$navbar-hl: $orange; // highlight color when hovering over navbar links
+$navbar-bg: transparent; // navbar
+$navbar-fg: $orange; // navbar foreground elements
+$navbar-hl: $grey; // highlight color when hovering over navbar links
 $body-bg: $white; // page background 
 $body-color: $black; // page text 
-$footer-bg: $grey; // footer 
+$footer-bg: transparent; // footer 
+$footer-color: #white;
 $link-color: $orange; // hyperlinks 
 
 // Inline code

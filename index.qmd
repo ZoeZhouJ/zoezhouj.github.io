@@ -1,32 +1,49 @@
 ---
-# title: "Zoe Zhou"
-title: "Welcome to My Corner of Data & Creativity"
-image: media/headshot.png 
-#toc: false
-about:
-  template: jolla
-  image-shape: round
-  image-width: 17em
-  links:
-    - icon: linkedin
-      text: LinkedIn
-      href: https://www.linkedin.com/in/zoe-zhou-122850333/
-      target: _blank 
-    - icon: github
-      text: GitHub
-      href: https://github.com/ZoeZhouJ
-      target: _blank 
-    - icon: envelope
-      text: Email
-      href: mailto:jiaruizhou@bren.ucsb.edu
-  
+#title: "Zoe Zhou"
+format: html
+#title: "Welcome to My Corner of Data & Creativity"
+#image: media/headshot.png 
+toc: false
+#about:
+#  template: jolla
+#  image-shape: round
+#  image-width: 17em
+#  links:
+#    - icon: linkedin
+#      text: LinkedIn
+#      href: https://www.linkedin.com/in/zoe-zhou-122850333/
+#      target: _blank 
+ #   - icon: github
+#      text: GitHub
+#      href: https://github.com/ZoeZhouJ
+#      target: _blank 
+#    - icon: envelope
+#      text: Email
+#      href: mailto:jiaruizhou@bren.ucsb.edu
 ---
 
-Hi there! I'm **Zoe Zhou**, my Chinese name is pronounced as "jar-ray Jo" (Jiarui Zhou). I'm a graduate student at the Bren School of Environmental Science & Management at UCSB. 
+```{=html}
+<style>
+  nav {
+    color: $white;
+}
 
-I’m on a mission to merge the power of data with the beauty of nature, finding stories in numbers and moments in the wild. By day, I dive into projects like coral reef restoration and species distribution modeling. By sunrise and sunset, you’ll often find me riding waves, soaking in the golden light, and reconnecting with the natural world that inspires everything I do.
+  body {
+  background-image: url("media/flower.jpg");
+  background-size: cover;
+  background-position: 50% 25%;
+  background-repeat: no-repeat;
+}
+  
+  h1, h2, p {
+  color: white;
+  font-family: 'Nunito';
+}
+  
+</style>
+```
+# Zoe Zhou
 
+## Aspiring Environmental Data Scientist
 
-
-
-
+Welcome! From scatterplots to sunrise surfs, join me in navigating the world, one dataset at a time.

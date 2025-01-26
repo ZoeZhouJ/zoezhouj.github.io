@@ -1,9 +1,9 @@
 ---
-title: "About"
+title: "About Me"
 #toc: false
 image: media/headshot.png
 about:
-  template: jolla
+  template: trestles
   image-shape: round
   image-width: 17em
   links:
@@ -20,16 +20,16 @@ about:
       href: mailto:jiaruizhou@bren.ucsb.edu
   
 ---
-
+:::{#hero-heading}
 Hi there! I'm **Zoe Zhou**, my Chinese name is pronounced as "jar-ray Jo" (Jiarui Zhou). I'm a graduate student at the Bren School of Environmental Science & Management at UCSB. 
+
+This site is a reflection of my passions. Here, you’ll find:
+
+- Projects where I unravel patterns and tell stories hidden in data.
+- A Photography Gallery filled with snapshots of natural beauty and candid moments.
+- Insights into my journey, aspirations, and maybe even a few experiments (both in data and life).
 
 I’m on a mission to merge the power of data with the beauty of nature, finding stories in numbers and moments in the wild. By day, I dive into projects like coral reef restoration and species distribution modeling. By sunrise and sunset, you’ll often find me riding waves, soaking in the golden light, and reconnecting with the natural world that inspires everything I do.
 
-
-#### This site is a reflection of my passions—a space where science meets creativity. Here, you’ll find:
-
-#### - Projects where I unravel patterns and tell stories hidden in data.
-#### - A Photography Gallery filled with snapshots of natural beauty and candid moments.
-#### - Insights into my journey, aspirations, and maybe even a few experiments (both in data and life).
-
-#### Whether you’re here for inspiration, collaboration, or simply to wander, I’m excited to have you along for the ride.
+Whether you’re here for inspiration, collaboration, or simply to wander, I’m excited to have you along for the ride.
+:::

@@ -6,6 +6,7 @@ website:
   title: "Zoe Zhou"
   favicon: media/logo.png
   navbar:
+    background: transparent
     title: false
     logo: media/logo.png
     logo-alt: "Jiarui Zoe Zhou"
@@ -22,9 +23,10 @@ website:
         href: https://github.com/ZoeZhouJ
         target: _blank
   page-footer:
-    background: light
+    border: false
+    background: transparent
     left: Copyright 2025, Zoe Zhou
-    right: This website is built with {{< fa heart title="a heart" >}}, [{{< fa brands github title="GitHub octocat logo" >}}](https://github.com/zoezhouj/zoezhouj.github.io){target=_blank}, [{{< fa brands r-project title="R Project" >}}](https://www.r-project.org/about.html){target=_blank} and [Quarto](https://quarto.org/){target=_blank}
+    right: This website is built with {{< fa heart title="a heart" >}}, GitHub, R and Quarto #[{{< fa brands github title="GitHub octocat logo">}}](https://github.com/zoezhouj/zoezhouj.github.io){target=_blank}, [{{< fa brands r-project title="R Project" >}}](https://www.r-project.org/about.html){target=_blank} and [Quarto](https://quarto.org/){target=_blank}
 format:
   html:
     theme: 
