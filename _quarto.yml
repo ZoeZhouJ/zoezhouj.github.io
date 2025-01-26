@@ -32,7 +32,7 @@ format:
     theme: 
       - Simplex
       - style.scss
-    mainfont: Mulish
+    mainfont: Nunito
     toc: true
     page-layout: full
 
