@@ -24,9 +24,6 @@ toc: false
 
 ```{=html}
 <style>
-  nav {
-    color: $white;
-}
 
   body {
   background-image: url("media/flower.jpg");
@@ -47,3 +44,7 @@ toc: false
 ## Aspiring Environmental Data Scientist
 
 Welcome! From scatterplots to sunrise surfs, join me in navigating the world, one dataset at a time.
+
+<div style="margin-top: 1.5em;">
+  <a href="https://zoezhouj.github.io/about.html" class="btn btn-outline-light rounded-pill btn-block">Enter here</a>
+</div>
