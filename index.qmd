@@ -1,7 +1,6 @@
 ---
 #title: "Zoe Zhou"
 format: html
-#title: "Welcome to My Corner of Data & Creativity"
 #image: media/headshot.png 
 toc: false
 #about:
@@ -32,19 +31,23 @@ toc: false
   background-repeat: no-repeat;
 }
   
-  h1, h2, p {
+  h1, h2 {
+  color: white;
+  font-family: 'Nunito';
+  font-weight:bold
+}
+
+  p {
   color: white;
   font-family: 'Nunito';
 }
-  
 </style>
 ```
 # Zoe Zhou
-
 ## Aspiring Environmental Data Scientist
 
-Welcome! From scatterplots to sunrise surfs, join me in navigating the world, one dataset at a time.
+Welcome! Join me in navigating the world, one dataset at a time.
 
 <div style="margin-top: 1.5em;">
-  <a href="https://zoezhouj.github.io/about.html" class="btn btn-outline-light rounded-pill btn-block">Enter here</a>
+  <a href="https://zoezhouj.github.io/about.html" class="btn btn-outline-light rounded-pill btn-block" style="border: 3px solid;"><strong>Enter here</strong></a>
 </div>

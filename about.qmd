@@ -18,7 +18,6 @@ about:
     - icon: envelope
       text: Email
       href: mailto:jiaruizhou@bren.ucsb.edu
-  
 ---
 
 :::{#hero-heading}
