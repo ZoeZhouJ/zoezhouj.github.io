@@ -1,0 +1,253 @@
+---
+title: "Principal Components Analysis (PCA) on Soil Characteristics"
+author: "Zoe Zhou"
+format: 
+  html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: Flatly
+---
+![Cattle on Namibia Rangeland. Photo by Tim Brunauer on behalf of Deutsche Gesellschaft für Internationale Zusammenarbeit (GIZ)](https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Cattle_standing_on_Namibian_rangeland.jpg/1600px-Cattle_standing_on_Namibian_rangeland.jpg?20240506163806)
+
+## About
+Principal Component Analysis (PCA) is an ordination method that allows us to extract as much information as possible from multivariate data by reducing it to a simplified number of dimensions. In this study, we will use PCA to **eliminates multicollinearity**, **identify key variables** and **visualize interactions** in soil characteristics that may influence plant trait responses to livestock grazing. By reducing the complexity of the dataset, PCA will help uncover patterns and relationships that are critical for understanding the ecological dynamics of grazing systems. 
+
+## Data Summary
+**Soil Environmental Data**: The data used in this study is derived from a study on the effects of grazing on soil properties. (Wesuls et al., 2012) The dataset includes a variety of environmental variables grouped into categories such as grazing parameters, soil chemical and physical properties, soil surface characteristics, and topographical parameters. Below is a summary of the environmental variables used in the analysis:
+
+| **Category**               | **Variables** | **Description**               |
+|----------------------------|------------------|-----------------------------------------------------|
+| **Grazing parameters**     | logDist          | Logarithm of distance from watering point (m)       |
+|                            | GrazInt          | Grazing intensity (unitless)                        |
+| **Soil chemical parameters** | pH               | pH value (measured in CaCO₃, unitless)              |
+|                            | Conductivity     | Electrical conductivity (µS/cm)                     |
+|                            | Cl               | Chloride concentration (ppm)                        |
+|                            | NO2              | Nitrite concentration (ppm)                         |
+|                            | NO3              | Nitrate concentration (ppm)                         |
+|                            | PO4              | Phosphate concentration (ppm)                       |
+|                            | SO4              | Sulphate concentration (ppm)                        |
+|                            | Na               | Sodium concentration (ppm)                          |
+|                            | NH4              | Ammonium concentration (ppm)                        |
+|                            | K                | Potassium concentration (ppm)                       |
+|                            | Mg               | Magnesium concentration (ppm)                       |
+|                            | Ca               | Calcium concentration (ppm)                         |
+| **Soil physical parameters** | Skeleton         | Skeleton fraction of the soil (% of particles >0.2 cm) |
+|                            | Soil depth       | Soil depth (cm)                                     |
+| **Soil surface parameters** | Fine             | Cover of fine material <0.2 cm (%)                  |
+|                            | Gravel           | Cover of gravel 0.2–2.0 cm (%)                      |
+|                            | Stones           | Cover of stones >2 cm (%)                           |
+|                            | Blocks           | Cover of blocks >60 cm (%)                          |
+|                            | Wood             | Cover of dead wood (%)                              |
+|                            | Litter           | Cover of litter (%)                                 |
+|                            | Dung             | Cover of dung (%)                                   |
+|                            | Biocrust         | Cover of biological soil crust (%)                  |
+| **Topographical parameters** | Inclination      | Inclination (% slope)                               |
+
+
+**Citation**: Wesuls, D., Oldeland, J., and Dray, S. (2012). Disentangling plant trait responses to livestock grazing from spatio-temporal variation: the partial RLQ approach. Journal of Vegetation Science, 23: 98-113. https://doi.org/10.1111/j.1654-1103.2011.01342.x
+
+## Analysis Outline
+
+1. Preliminary data exploration
+2. Data Wrangling
+3. Run PCA function 
+4. Principal Components
+5. Scree Plots
+6. PCA Biplot
+7. Discussion 
+
+## Set Up
+We will use the following libraries and set-up through this analysis
+```{r}
+library(tidymodels)
+library(tidyverse)
+library(ggfortify)
+library(kableExtra)
+library(skimr)
+library(patchwork)
+```
+
+## Preliminary Data Exploration
+
+From the data summary, we observed several challenges in the distribution figures. Many variables exhibited skewed distributions, particularly chemical concentration variables, which required transformations to normalize their ranges. Additionally, some variables, such as the Blocks column, had a high proportion of missing or zero values, making them less informative for analysis.
+
+<details>
+<summary>Click to expand table</summary>
+
+ 
+```{r}
+# Load data  
+soil <- read.csv("data/grazing_env.csv")
+#head(soil)
+#summary(soil)
+#glimpse(soil)
+skim(soil)
+```
+</details>
+Figure 1 is a correlation heatmap that shows the pairwise correlations between variables in the dataset. The color scale on the right indicates the strength and direction of the correlations, ranging from -1.0 (blue) for strong negative correlations to 1.0 (brown) for strong positive correlations.
+For example, `logDist` is negatively correlated with `Grazint`, `pH`, `Conductivity` and `Dung`. `Solidepth` is negatively correlated with `pH`, `Skeleton` and `Conductivity` (blue), while positively correlated with `Fine` (brown). Highly correlated variables such as `Ca`, `Na`, `K` and `Mg` may indicate redundancy. 
+
+```{r}
+#| fig-cap: "Figure 1: Pairwise Correlation Heatmap of Soil Data"
+# Create correlation heatmap
+# Select numeric columns for correlation analysis
+numeric_features <- soil[sapply(soil, is.numeric)]
+
+# Compute the correlation matrix
+cor_matrix <- cor(numeric_features, use = "complete.obs")
+
+# Create df
+cor_df <- as.data.frame(as.table(cor_matrix))
+
+# Create the heatmap
+ggplot(cor_df, aes(Var1, Var2, fill = Freq)) +
+  geom_tile(color = "white") +  # Add gridlines
+  scale_fill_gradient2(low = "lightblue", high = "#964B00", mid = "white", midpoint = 0, 
+                       limit = c(-1, 1), space = "Lab", name = "Correlation") +
+  labs(title = "Correlation Heatmap of Soil Data", x = "", y = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+Manually identifying redundant variables from the heatmap can be tedious, which necessitate a principal component analysis. Before we start, let's exam for NA values and select only numeric variables. 
+
+**PCA requires continuous numeric data with no NAs.  So we must drop categorical and character data, and exclude any rows with NAs. We should also rescale so all numeric variables have a mean 0 and sd 1.**
+
+## Data Wrangling 
+
+For variables with many zero values, particularly the Blocks column (97% blank), we opted to filter it out entirely. For chemical concentration variables, we applied a log transformation to reduce skew and compresses the range of values.
+
+<details>
+<summary>Click to expand plots</summary>
+
+```{r}
+#| fig-cap: "Figure 2. Histograms of Variables Distribution"
+# select variables to transform
+chem_vars <- c('Cl', "NO2", "NO3", "PO4", "SO4", "Na", "NH4", "K", "Mg", "Ca")
+
+# Apply log transformation
+soil_log <- soil %>% 
+  drop_na() %>% 
+  select(-Blocks) %>% 
+  mutate(across(all_of(chem_vars), ~log(. +1))) #%>% 
+  #mutate(GrazInt = factor(GrazInt, levels = c('Low', 'Medium','High', 'Very High')))
+
+# Check results
+#skim(soil_log)
+
+# Visualize results
+soil_log_long <- soil_log %>% 
+  pivot_longer(names_to = 'name', values_to = 'value', where(is.numeric)) 
+
+ggplot(soil_log_long, aes(x=value))+
+  geom_histogram()+
+  facet_wrap(~name, scales="free_x")+
+  theme_minimal()
+```
+</details>
+
+## Principal Component Analysis
+
+```{r}
+#| code-fold: false
+# Run PCA function
+soil_pca <- soil_log %>% 
+  select(where(is.numeric))%>% 
+  prcomp(center = TRUE, scale = TRUE)
+```
+<details>
+<summary>Click to expand summary results</summary>
+
+```{r}
+# Check results
+summary(soil_pca)
+```
+
+</details>
+
+The loading (eigenvalues) of variables for 24 principal components is listed in table below. 
+
+<details>
+<summary>Click to expand table</summary>
+
+```{r}
+#| table-cap: "Eigenvalue Table of PCA"
+kable(soil_pca$rotation)
+```
+</details>
+## Principal Components Results
+Interpretation: 
+PC1 explains 17.97% of the variance, and PC2 explains 15.12%, together accounting for approximately 33.1% of the total variance.
+
+In PC1, Skeleton (0.37), Gravel (0.28), Inclination (0.25), Stones (0.25), and K (0.24) are the strongest positive contributors. Litter (-0.34), Fine (-0.33), PO4 (-0.28), and NO3 (-0.26) are the strongest negative contributors.
+
+In PC2, Conductivity, pH, Ca, NO3, and Dung are the strongest positive contributors, while logDist and Soildepth are the strongest negative contributors.
+
+PC3's Key Contributors includes
+Stones, Biocrust, Skeleton, and Inclination as the strongest positive contributors. Soildepth, Na, K, and Mg  are the strongest negative contributors.
+
+## Scree Plots
+A scree plot is created for visualizating PC contributions (Figure 3). 
+```{r}
+#| fig-cap: "Figure 3. Scree-plot explaining variance captured by each component"
+# screeplot
+#screeplot(soil_pca, type='lines')
+
+# create df
+pc_names <- colnames(soil_pca$rotation)
+sd_vec <- soil_pca$sdev
+var_vec <- sd_vec^2
+
+pct_expl_df <- data.frame(v=var_vec,
+                          pct_v = var_vec/sum(var_vec),
+                          pc = pc_names)
+pct_expl_df$pc <- factor(pct_expl_df$pc, levels = pc_names)
+# plot 
+ggplot(pct_expl_df, aes(x = pc, y = pct_v)) +
+  geom_col(fill = "lightblue",alpha = 0.7) +
+  labs(title = "Scree Plot", x = 'Principal component', y = 'Variance explained')+
+  scale_y_continuous(labels = scales::percent)+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))+
+  geom_text(aes(label = scales::percent(pct_v, accuracy = 0.1)), 
+            angle = 25, hjust = -0.25, size = 3) 
+  
+```
+
+## Biplot
+
+A biplot for PCA showing 1. The loading of variables for the first two principal components(brown arrows), and 2. The score of each observations based on the first two principal components is created for futher explaination (Figure 4). 
+
+The length of the arrows indicates the strength of the contribution of each variable to the principal components. Longer arrows represent stronger contributions. The direction of the arrows shows how variables are correlated with each other and with the principal components.The points are colored based on the "Skeleton" variable, with darker points indicating higher skeleton content.
+```{r}
+#| fig-cap: "Figure 4. PCA Biplot: Soil Environmental Variables"
+autoplot(soil_pca, 
+         data = soil_log,
+         loadings=TRUE,
+         colour = 'Skeleton',
+         loadings.label=TRUE,
+         loadings.colour = "#964B00",
+     	   loadings.label.colour = "#964B00",
+     	   loadings.label.vjust = -0.5
+     	) +
+  scale_color_gradient(low="lightblue", high='darkblue') +
+  theme_minimal()
+
+```
+
+## Discussion
+
+This biplot provides a clear visualization of how soil properties and environmental factors vary and interact across the dataset. To get ~80% of variance explained, we must include 11 principle components. 
+
+Skeleton is strongly positively correlated with PC1, indicating that areas with higher skeleton content have higher PC1 scores. 
+
+Variables such as Skeleton, Gravel, Inclination, Ca, and Stones have arrows pointing in the same direction along PC1. Variables like Conductivity, pH, GrazInt, and Dung are more aligned with PC2. This suggests that PC2 captures a gradient related to soil chemistry and grazing intensity. 
+
+
+
+
