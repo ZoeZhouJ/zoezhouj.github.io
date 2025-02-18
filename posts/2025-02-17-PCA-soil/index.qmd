@@ -1,6 +1,9 @@
 ---
 title: "Principal Components Analysis (PCA) on Soil Characteristics"
 author: "Zoe Zhou"
+date: 02-17-2025
+categories: [R, Modeling, Quarto]
+image: preview.jpg
 format: 
   html:
     code-fold: true
@@ -11,7 +14,7 @@ execute:
   message: false
 theme: Flatly
 ---
-![Cattle on Namibia Rangeland. Photo by Tim Brunauer on behalf of Deutsche Gesellschaft für Internationale Zusammenarbeit (GIZ)](https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Cattle_standing_on_Namibian_rangeland.jpg/1600px-Cattle_standing_on_Namibian_rangeland.jpg?20240506163806)
+![Cattle on Namibia Rangeland. Photo by Tim Brunauer on behalf of Deutsche Gesellschaft für Internationale Zusammenarbeit (GIZ)](preview.jpg)
 
 ## About
 Principal Component Analysis (PCA) is an ordination method that allows us to extract as much information as possible from multivariate data by reducing it to a simplified number of dimensions. In this study, we will use PCA to **eliminates multicollinearity**, **identify key variables** and **visualize interactions** in soil characteristics that may influence plant trait responses to livestock grazing. By reducing the complexity of the dataset, PCA will help uncover patterns and relationships that are critical for understanding the ecological dynamics of grazing systems. 

@@ -1,0 +1,439 @@
+---
+title: "Florida Palmetto Species Classifier"
+author: "Zoe Zhou"
+date: 02-18-2025
+image: preview.jpg
+categories: [R, Modeling, Quarto]
+format: 
+  html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: minty
+---
+![Saw-palmetto growing under an upland pine forest. Photo by Southwest Florida Water Management District](https://www.swfwmd.state.fl.us/sites/default/files/medias/images/saw-palmetto-506614376.jpg)
+
+## About
+Saw palmetto (*Serenoa repens*) and scrub palmetto (*Sabal etonia*) are both keystone species in south-central Florida that support the pine flatwoods ecosystem. This analysis uses logistic regression to classify these two native palmetto species based on plant characteristics. The goal is to evaluate whether variables such as plant height, canopy dimensions, and the number of green leaves can effectively predict species classification. The highlight of this study includes data visualization, logistic regression modeling, and models assessment with cross-validation. 
+
+### Data Summary
+
+**Palmetto Monitoring Data**
+The dataset used for this analysis can be accessed through [EDS Data Portal](https://portal.edirepository.org/nis/mapbrowse?packageid=edi.317.1). It provides detailed measurements of the growth and survival characteristics of Serenoa repens and Sabal etonia, two prominent palmetto species in Florida. The specific variables included in the dataset are:
+
+| **Column Name** | **Description**                                                                                     | **Type**   |
+|------------------|-----------------------------------------------------------------------------------------------------|------------|
+| `year`           | Sample year.                                                                                       | date       |
+| `plant`          | Plant ID number.                                                                                   | float      |
+| `species`        | Palmetto species (*Serenoa repens* or *Sabal etonia*).                                              | string     |
+| `site`           | Site name.                                                                                         | string     |
+| `habitat`        | Habitat type.                                                                                      | string     |
+| `treatment`      | Experimental treatment applied.                                                                     | string     |
+| `survival`       | Survival from previous census (1981–2017).                                                         | string     |
+| `height`         | Maximum height (1981–2017).                                                                         | float      |
+| `length`         | Widest length of the canopy (1981–2017).                                                            | float      |
+| `width`          | Widest width of the canopy perpendicular to the canopy length (1981–2017).                         | float      |
+| `green_lvs`      | Count of green leaves (1981–2017).                                                                  | float      |
+| `scape`          | Count of inflorescence scapes (1981–2017).                                                          | float      |
+| `new_lvs`        | Count of new leaves (1982–2017).                                                                    | float      |
+| `biomass`        | Calculated biomass estimate of dry mass (1989–2017).                                                | float      |
+| `canopy`         | Average percent canopy cover across the four cardinal directions, taken in January 1993.            | float      |
+| `lf_long`        | Leaf longevity (1990–1997).                                                                         | float      |
+| `comments`       | Notes made in 2017.                                                                                 | string     |
+
+
+
+### Data Citation:
+
+Abrahamson, W.G. 2019. Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals ver 1. Environmental Data Initiative. [https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5](https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5)
+
+### Analysis Outline
+1. Data Exploration
+2. Train Logistic Regression Models
+3. K-fold Cross-Validation 
+4. Model Assessment
+5. Predict with Best Performaing Model
+6. Test Classification Accuracy 
+
+## Set-up
+We will use the following libraries and set-up through this analysis
+```{r}
+# Import libraries
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(cowplot)
+library(patchwork)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(kableExtra)
+library(stats)
+library(yardstick)
+
+```
+
+## Data Exploration 
+From the metadata, code 1 represents Serenoa repens, code 2 represents Sabal etonia. We will first load the dataset and preprocess the data by selecting the relevant columns and removing missing values, then factorize the string type species column into dummy variables: 0 for Serenoa repens and 1 for Sabal etonia.
+```{r}
+# Load the dataset
+df <- read_csv(here("posts","2025-02-18-plant-classifier","data", "palmetto.csv"))
+# Preprocess data
+df_clean <- df %>% 
+  select(species, height, length, width, green_lvs) %>%
+  drop_na() %>%
+  mutate(species = factor(species, levels = c('1','2'), labels = c(0, 1)))
+kable(head(df_clean), title = "Palmetto Data cleaned")
+```
+
+### Histograms
+
+Both species exhibit overlapping distributions for height, width, and length, indicating these variables alone may not perfectly distinguish between Serenoa repens and Sabal etonia.
+
+- Height (Figure 1): The height distribution of Sabal etonia is slightly higher than that of Serenoa repens.
+
+- Width (Figure 2): Sabal etonia shows a slightly higher peak in the middle range (100–120 cm) compared to Serenoa repens.
+
+- Length (Figure 3): Significant overlap exists, but Sabal etonia tends to grow longer (100–200 cm), while Serenoa repens is more concentrated in shorter lengths (<200 cm).
+
+- Green Leaves (Figure 4): Serenoa repens generally has more green leaves than Sabal etonia, highlighting a potential growth pattern difference.
+```{r}
+##| fig-cap: "Figure 1: Histogram of Height by Species"
+#| fig-subcap: "This histogram shows the distribution of plant height (in cm) for two species of palmetto: Serenoa repens (red bars) and Sabal etonia (blue bars). The x-axis represents plant height, while the y-axis represents the count of plants within each height bin."
+
+# height comparison
+height <- ggplot(df_clean, aes(x=height, fill = species)) +
+  geom_histogram(position ="dodge", alpha = 0.8) +
+  labs(title = "Height Distribution by Species", 
+       x = "Height (cm)", 
+       y = "Count",
+       fill = "Species") +
+  scale_fill_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+#ggplot(df_clean, aes(x=height, fill = species)) +
+#  geom_histogram(position ="identity", alpha = 0.5)
+
+##| fig-cap: "Figure 2: Histogram of Width (in cm) by Species"
+#| fig-subcap: "This histogram shows the distribution of plant width (in cm) for two species of palmetto: Serenoa repens (red bars) and Sabal etonia (blue bars). The x-axis represents plant height, while the y-axis represents the count of plants within each height bin."
+# width comparison
+width <- ggplot(df_clean, aes(x=width, fill = species)) +
+  geom_histogram(position ="dodge", alpha = 0.8) +
+  labs(title = "Width Distribution by Species", 
+       x = "Width (cm)", 
+       y = "Count",
+       fill = "Species") +
+  scale_fill_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+##| fig-cap: "Figure 3: Histogram of Maximum Canopy Length by Species"
+#| fig-subcap: "The chart highlights subtle differences in growth patterns between the two species, with Sabal etonia tending to grow longer canopy than Serenoa repens. "
+# length comparison
+length <- ggplot(df_clean, aes(x=length, fill = species)) +
+  geom_histogram(position ="dodge", alpha = 0.8) +
+  labs(title = "Length Distribution by Species", 
+       x = "Length (cm)", 
+       y = "Count",
+       fill = "Species") +
+  scale_fill_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+##| fig-cap: "Figure 4: Green Leaves Counts by Species"
+#| fig-subcap: "Differences in growth patterns between the two species is shown here, with Sabal etonia tending to grow less green leaves than Serenoa repens."
+# leaves comparison
+leaves <- ggplot(df_clean, aes(x=green_lvs, fill = species)) +
+  geom_histogram(position ="dodge", alpha = 0.8) +
+  labs(title = "Number of Green Leaves by Species", 
+       x = "Number of Green Leaves", 
+       y = "Count",
+       fill = "Species") +
+  scale_fill_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme_minimal() +
+  theme(legend.position = "right") 
+```
+
+```{r}
+#| fig-cap: "Figure 1 - 4: Plant Characteristics by Species"
+height + width + length + leaves
+
+```
+
+### Paired Scatter Plots
+We will create paired scatter plots to visualize the relationship between plant characteristics. The scatter plots show the relationship between green leaves and width (Figure 5) and height and canopy length (Figure 6). The plots are colored by species to highlight differences in growth patterns. The scatter plot of green leaves vs. width (Top) shows less overlap compared to the height vs. canopy length plot (Bottom), indicating that green leaves and width may be more useful for species classification. However, all variables exhibit some degree of overlap, emphasizing the need for a combination of predictors to improve classification accuracy.
+```{r}
+#| fig-cap: "Figure 5 & 6: Scatter Plots of Paired Plant Characterstics"
+# leaves vs. width
+p1 <- ggplot(df_clean, aes(x = width, y = green_lvs, color = species)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Green Leaves vs. Width by Species",
+    x = "Width (cm)",
+    y = "Number of Green Leaves",
+    color = "Species"
+  ) +
+  
+  scale_color_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme(legend.position = "none") +
+  theme_minimal()
+
+# Height vs. Length
+p2 <- ggplot(df_clean, aes(x = height, y = length, color = species)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Height vs. Canopy Length by Species",
+    x = "Height (cm)",
+    y = "Max Canopy Length (cm)",
+    color = "Species"
+  ) +
+  scale_color_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia")) +
+  theme(legend.position = "right") +
+  theme_minimal() 
+  
+p1/p2
+```
+### Correlation Heat Map
+
+Then, we will use a heatmap to visualize the pairwise correlations among all numeric variables in the palmetto dataset. The heatmap suggests that `height`, `length`, `canopy`, `biomss` and `width` are highly positively correlated, which can be explained by larger plants having larger dimensions and more biomass. The variable `species` shows a negatively correlation with `green_lvs`, `new_lvs` and `biomass`, with the strength of correlation descending in that order. 
+
+```{r}
+#| fig-cap: "Figure 7: Pairwise Correlation Heatmap of Palmetto Data"
+# try a heatmap
+# Select numeric columns for correlation analysis
+numeric_features <- df[sapply(df, is.numeric)]
+numeric_features <- numeric_features[, !(colnames(numeric_features) %in% c("year", "site", "survival","plant"))]
+# Compute the correlation matrix
+cor_matrix <- cor(numeric_features, use = "complete.obs")
+
+# Convert the correlation matrix to a long format for ggplot2
+cor_data <- as.data.frame(as.table(cor_matrix))
+
+# Create the heatmap
+ggplot(cor_data, aes(Var1, Var2, fill = Freq)) +
+  geom_tile(color = "white") +  # Add gridlines
+  scale_fill_gradient2(low = "lightblue", high = "salmon", mid = "white", midpoint = 0, 
+                       limit = c(-1, 1), space = "Lab", name = "Correlation") +
+  labs(title = "Correlation Heatmap of Palmetto Data", x = "", y = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+## Train Logistic Regression Models
+### Data Split 
+We will split the data into training and testing sets using a 70/30 split and check for class imbalance. 
+```{r}
+set.seed(123)
+# Split the data
+df_split <- initial_split(df_clean, prop = 0.7, strata = species)
+df_train <- training(df_split)
+df_test <- testing(df_split)
+
+# Check class imbalance
+train_class <- df_train %>%
+  group_by(species) %>%
+  summarize(n = n()) %>%
+  ungroup() %>%
+  mutate(prop = n / sum(n)) 
+
+test_class <- df_test %>%
+  group_by(species) %>%
+  summarize(n = n()) %>%
+  ungroup() %>%
+  mutate(prop = n / sum(n)) 
+```
+
+### Model Training 
+
+Set engine
+
+```{r}
+# initiate model 
+log <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+```
+
+**Model 1**: log odds of species based on height, length, width and leaves as predictor variables.
+```{r}
+#| code-fold: false
+# Create recipe
+rec_1 <- recipe(species ~ height + length + width + green_lvs, data = df_train) 
+
+# Fit model with training data
+log_1 <- workflow() %>%
+  add_recipe(rec_1) %>%
+  add_model(log) 
+
+log_1_fit <- log_1 %>%
+  fit(data = df_train)
+```
+
+**Model 2**: log odds of species based on height, width and green leaves as predictor variables.
+```{r}
+#| code-fold: false
+rec_2 <- recipe(species ~ height + width + green_lvs, data = df_train) 
+
+log_2 <- workflow() %>%
+  add_recipe(rec_2) %>%
+  add_model(log) 
+log_2_fit <- log_2 %>%
+  fit(data = df_train)
+```
+
+### Compare models using K-fold Cross-Validation
+Randomly divide training data into k groups, 
+train models with k-1 folds, leaving one out for validation. Compute performance metrics for k number of models. 
+Average k test errors to get an estimate of the model's performance on unseen data. 
+
+**Model 1**
+```{r}
+#| code-fold: false
+# Split training data 
+folds <- vfold_cv(df_train, v = 10, strata = species)
+
+# Fit models with 9 folds and evaluate on the remaining fold
+log_1_folds <- log_1 %>% 
+  fit_resamples(folds)
+
+# Calculate model performance
+m1_metrics <- collect_metrics(log_1_folds)
+```
+
+**Model 2**
+```{r}
+#| code-fold: false
+log_2_folds <- log_2 %>% 
+  fit_resamples(folds)
+
+m2_metrics <- collect_metrics(log_2_folds)
+```
+
+Model Comparison
+```{r}
+#| fig-cap: "Model Comparison"
+# Display tables 
+condensed_table <- data.frame(
+  Model = c("Model 1", "Model 2"),
+  Accuracy_Mean = c(m1_metrics$mean[1], m2_metrics$mean[1]),
+  ROC_AUC_Mean = c(m1_metrics$mean[3], m2_metrics$mean[3])
+)
+kable(condensed_table, title="Model Comparison")
+```
+From 10 fold cross-validation, Model 1 has a higher accuracy and ROC AUC compared to Model 2, suggesting that model 1 is better at classification. 
+
+## Train Best Model
+```{r}
+# Finalize the model using entire data set
+log_1_final <- log_1 %>%
+  last_fit(split = df_split)
+
+# Extract actual models
+model_final <- log_1_final %>% 
+  extract_fit_parsnip() 
+  
+model_table <- model_final %>%
+  tidy() %>% 
+  mutate(p.value = as.character(p.value)) %>%
+  kable(format = "html", caption = "Logistic Regression Model Results") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+model_table
+```
+Each coefficient estimate shows how much the likelihood of the outcome being species Sabal etonia changes when the corresponding predictor increases by one unit. 
+
+## Classification Results
+This section evaluates how successfully the selected model would classify a plant as the correct species. I use a confusion matrix and histogram of predicted probabilities to assess the model's performance. 
+
+### Predict with Model
+```{r, echo=FALSE}
+#| result: "hide"
+#| include: false
+result <- df_test %>%
+  mutate(predict(model_final, new_data = df_test, type="class")) %>% 
+  mutate(predict(model_final, new_data = df_test, type = "prob")) 
+
+result %>%
+  select(species, .pred_class, .pred_0, .pred_1) 
+
+# Calculate TP, FP, TN, FN
+TP <- sum(result$species == 1 & result$.pred_class == 1)  # True Positives
+FP <- sum(result$species == 0 & result$.pred_class == 1)  # False Positives
+TN <- sum(result$species == 0 & result$.pred_class == 0)  # True Negatives
+FN <- sum(result$species == 1 & result$.pred_class == 0)  # False Negatives
+
+summary_table <- tibble(
+  species = c('Serenoa repens','Sabal etonia'),
+  correctly_classified = c(TN, TP),
+  incorrectly_classified = c(FN, FP),
+  percent_correct = scales::percent(round(correctly_classified / (correctly_classified + incorrectly_classified) * 100, 2))) 
+```
+
+```{r}
+# Display the final table
+kable(summary_table, caption = "Model Classification Results")
+```
+
+### Visualize Results with Confusion Matrix
+```{r}
+#| fig-cap: "Figure 8: Confusion Matrix Heatmap"
+# Make confusion matrix with true/false positive and true/false negative
+conf_matrix <- result %>%
+  conf_mat(truth = species, estimate = .pred_class)
+
+cm <- autoplot(conf_matrix, type = "heatmap") +
+  scale_fill_gradient(low = "salmon", high = "lightblue") +
+  labs(
+    title = "Confusion Matrix Heatmap",
+    x = "Predicted Species",
+    y = "Actual Species"
+  ) +
+  scale_x_discrete(labels = c("Serenoa repens", "Sabal etonia")) +  # Custom labels for x-axis
+  scale_y_discrete(labels = c("Sabal etonia","Serenoa repens")) +  # Custom labels for y-axis
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.position = "none" 
+  )
+cm
+```
+
+### Visualize Results with Predicted Probability
+```{r}
+#| fig-cap: "Figure 9: Density Plot of Predicted Probabilities"
+# Pivot result table for plotting
+result_long <- result %>%
+  pivot_longer(cols = c(.pred_0, .pred_1), names_to = "plant", values_to = "probability")
+
+# Plot predicted probabilities
+prob_p <- ggplot(result, aes(x=.pred_1, fill = as.factor(species)))+
+  geom_density(stat ='density',position="identity",alpha=0.7)+
+  labs(title="Density Plot of Predicted Probabilities",
+       x="Predicted Probability of Sabal etonia",
+       y="Frequency",
+       fill="Species")+
+  scale_fill_manual(values = c("0" = "#964B00", "1" = "skyblue"),
+                    labels = c("Serenoa repens", "Sabal etonia"))+
+  theme_minimal()+
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.position = "right" 
+  )
+prob_p 
+```
+### Discussion
+
+This study utilizes plant height (in cm), canopy length (in cm), canopy width (in cm), and the count of green leaves to develop a regression model aimed at predicting two closely related plant species. The results indicate promising accuracy, achieving 91.7% for Serenoa repens and 91.13% for Sabal etonia. The model's sensitivity is calculated as 91.83%, indicating its ability to correctly identify positive cases, while its specificity is 91.01%, reflecting its accuracy in identifying negative cases.
+
