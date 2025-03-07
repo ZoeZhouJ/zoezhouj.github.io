@@ -343,6 +343,16 @@ model_final <- log_1_final %>%
   
 model_table <- model_final %>%
   tidy() %>% 
+  mutate(
+    term = case_when(
+      term == "height" ~ "Maximum Height",
+      term == "length" ~ "Maximum Canopy Length",
+      term == "width" ~ "Maximum Canopy Width",
+      term == "green_lvs" ~ "Count of Green Leaves",
+      TRUE ~ term
+    ),
+    p.value = ifelse(as.numeric(p.value) < 0.01,'<0.01', as.character(p.value))
+  ) %>% 
   mutate(p.value = as.character(p.value)) %>%
   kable(format = "html", caption = "Logistic Regression Model Results") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
@@ -374,7 +384,10 @@ summary_table <- tibble(
   species = c('Serenoa repens','Sabal etonia'),
   correctly_classified = c(TN, TP),
   incorrectly_classified = c(FN, FP),
-  percent_correct = scales::percent(round(correctly_classified / (correctly_classified + incorrectly_classified) * 100, 2))) 
+  percent_correct = scales::percent(round(
+    c(TN / (TN + FN), TP / (TP + FP)), 2
+    )) 
+)
 ```
 
 ```{r}
