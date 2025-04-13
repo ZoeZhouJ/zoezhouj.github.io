@@ -1,0 +1,265 @@
+---
+title: "Decoding Energy Patterns: Time Series Analysis of US Energy Consumption"
+author: "Zoe Zhou"
+date: 03-13-2025
+image: preview.jpg
+categories: [R, Modeling, Quarto]
+format: 
+  html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: minty
+---
+![Renewable Energy Examples by GMS](https://www.gmsthailand.com/wp-content/uploads/2023/12/Feature-Renewable-Energy.jpg)
+
+### Overview
+In today's data-driven world, understanding energy consumption patterns isn't just for utility companies - it's valuable for everyone interested in sustainability, energy planning, or data science techniques. Join me as I explore residential energy consumption trends using powerful time series analysis methods in R.
+
+#### Data Summary
+
+we will use data on US residential energy consumption from January 1973 - September 2023 (from the US Energy Information Administration).
+
+-   Dataset: U.S. Residential Energy Consumption (Jan 1973 - Sep 2023)
+-   Units: Trillion BTU
+-   Source: US Energy Information Administration (https://www.eia.gov/totalenergy/data/monthly/index.php)
+
+#### Objectives
+
+1. Examine patterns and trends in energy usage over this 50-year period
+2. Forecast consumption patterns five years into the future
+
+### Set up 
+```{r setup}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(tsibble) 
+library(feasts)
+library(fable)
+library(ggplot2)
+
+energy_df <- read_csv(here("posts", "2025-03-13-energy", "data", "energy.csv"))
+
+energy_ts <- energy_df %>% 
+  mutate(date = yearmonth(yrmonth)) %>% 
+  as_tsibble(index = date, 
+             key = sector)
+```
+
+### Visualizing Energy Consumption Trends
+
+```{r}
+# Create a more presentable energy consumption trend visualization
+ggplot(data = energy_ts, aes(x = date, y = energy_total, color = sector)) +
+  geom_line(linewidth = 0.9) +
+  labs(
+    title = "U.S. Energy Consumption by Sector (1973-2023)",
+    subtitle = "Monthly data from the U.S. Energy Information Administration",
+    x = "Year",
+    y = "Energy Consumption (Trillion BTU)",
+    color = "Sector"
+  ) +
+  theme_minimal() +
+  scale_color_manual(
+    values = c("residential" = "#3498DB", "commercial" = "#E74C3C", "industrial" = "#2ECC71"),
+    labels = c("Residential", "Commercial", "Industrial")
+  ) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 12, color = "gray40"),
+    axis.title = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    panel.grid.minor = element_line(color = "gray95"),
+    panel.grid.major = element_line(color = "gray90"),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
+  ) +
+  guides(color = guide_legend(override.aes = list(linewidth = 2)))
+
+```
+Looking at the residential sector specifically, we can observe an overall increasing trend that eventually plateaus. There're strong seasonal patterns (more pronounced than in the industrial sector). In addition there's no obvious cyclical behavior beyond seasonality.
+
+#### Is there a seasonal pattern?
+
+A seasonplot can help point out seasonal patterns, and help to glean insights over the years. We'll use `feasts::gg_season()` to create an exploratory seasonplot, which has month on the x-axis, energy consumption on the y-axis, and each year is its own series (mapped by line color).
+
+
+```{r}
+
+# Create a more presentable seasonal plot for residential energy consumption
+energy_ts %>% 
+  filter(sector == 'residential') %>%
+  gg_season(y = energy_total, pal = hcl.colors(n = 10, palette = "viridis")) + 
+  theme_minimal() +
+  labs(
+    title = "Seasonal Patterns in U.S. Residential Energy Consumption",
+    subtitle = "Monthly patterns shown across different years (1973-2023)",
+    x = "Month",
+    y = "Energy Consumption (Trillion BTU)",
+    color = "Year"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 12, color = "gray40"),
+    axis.title = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 0),
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    panel.grid.minor = element_line(color = "gray95"),
+    panel.grid.major = element_line(color = "gray90"),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
+  ) +
+  scale_x_discrete(
+    labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  ) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, NA))
+
+  
+```
+This visualization reveals two distinct usage peaks throughout the year: A primary winter peak (December-February), likely driven by heating needs and a secondary summer peak (June-August), likely due to air conditioning use. Interestingly, the summer peak has become more pronounced in recent years, potentially reflecting increased air conditioning adoption and climate change impacts.
+
+A subseries plot further confirms these patterns:
+
+<details><summary>Expand to see the subseries plot</summary>
+
+```{r}
+energy_ts %>% gg_subseries(energy_total)
+```
+
+</details>
+
+
+### Decomposing the Time Series
+To formally separate the components of our time series, I'll use STL decomposition (Seasonal and Trend decomposition using LOESS):
+
+STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using LOESS”, while LOESS is a method for estimating nonlinear relationships." LOESS ("Locally estimated scatterplot smoothing") uses a *weighted* moving average across *all* points in the dataset, weighted by distance from the point being averaged.
+
+Notice that it allows seasonality to vary over time (a major difference from classical decomposition, and important here since we do see changes in seasonality).
+
+```{r}
+# Find STL decomposition
+dcmp <- energy_ts %>%
+  filter(sector == 'residential') %>%
+  model(feasts::STL(energy_total ~ season(period = '1 year') + trend(window = 25)))
+
+
+# Visualize the decomposed components
+components(dcmp) %>% 
+  autoplot() +
+  theme_minimal()
+```
+
+This decomposition clearly identifies:
+
+- The seasonal component with its bi-modal pattern
+
+- A trend component showing the overall increase and plateau
+
+- A remainder component that captures the noise in the data
+
+### Autocorrelation Analysis
+To further understand the temporal dependencies in our data, we can use autocorrelation plots (ACF). These plots help us identify the correlation of a time series with its own past values.
+
+```{r}
+energy_ts %>% 
+  filter(sector == 'residential') %>%
+  ACF(energy_total) %>% 
+  autoplot()
+```
+Looking at the autocorrelation function (ACF) confirmed the strong seasonal pattern, with the highest correlation at 12-month intervals
+
+### Forecasting
+
+After understanding the historical patterns, I created a forecasting model using Exponential Smoothing (ETS). I specified a model with multiplicative seasonality and additive trend based on the change in variance over time and also within the secondary summer peak. 
+
+```{r}
+
+energy_fit <- energy_ts %>%
+  filter(sector == 'residential') %>%
+  group_by_key(sector) %>%
+  model(ets = ETS(energy_total ~ season(method = "M") + trend(method = "A")))
+
+energy_forecast <- energy_fit %>% 
+  forecast(h = "5 years")
+
+# plot it added to the original data:
+energy_forecast %>% 
+  autoplot(energy_ts)
+```
+### Model Validation
+To validate the model's performance, I compared the predicted values against the actual data:
+```{r}
+energy_predicted <- broom::augment(energy_fit)
+
+# Create a more presentable comparison of actual vs. predicted energy consumption
+ggplot(data = energy_predicted) +
+  geom_line(aes(x = date, y = energy_total, color = "Actual Consumption"), linewidth = 0.8) +
+  geom_line(aes(x = date, y = .fitted, color = "Model Prediction"), linewidth = 0.8) +
+  labs(
+    title = "U.S. Residential Energy Consumption: Actual vs. Predicted",
+    subtitle = "Comparing observed data with ETS model predictions (1973-2023)",
+    x = "Year",
+    y = "Energy Consumption (Trillion BTU)",
+    color = "Data Type"
+  ) +
+  scale_color_manual(values = c("Actual Consumption" = "#2E86C1", "Model Prediction" = "darkorange")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 10, color = "gray30"),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    panel.grid.minor = element_line(color = "gray90"),
+    panel.grid.major = element_line(color = "gray80"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(size = 9)
+  )
+
+
+```
+
+The model appears to capture both the seasonal patterns and overall trend effectively, with residuals that are approximately normally distributed.
+
+#### Residual Analysis
+
+The residuals appear roughly centered around zero, which is what we want to see. The distribution is approximately symmetric, suggesting our model isn't systematically over- or under-predicting. There are some slight deviations from perfect normality, which could indicate specific periods where the model struggled to capture all aspects of the data. But overall, This residual analysis gives us confidence that our ETS model is performing reasonably well, though there's always room for refinement. The residuals don't show strong evidence of systematic errors, suggesting that the model has captured the main patterns in the residential energy consumption data.
+
+```{r}
+ggplot(data = energy_predicted, aes(x = .resid)) +
+  geom_histogram(fill = "#4682B4", color = "white", bins = 30) +
+  labs(
+    title = "Distribution of Model Residuals",
+    subtitle = "Assessing model performance through residual analysis",
+    x = "Residual Value (Actual - Predicted)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(color = "gray30")
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red")
+
+```
+
+### Conclusion
+
+This analysis reveals several important insights about residential energy consumption in the United States:
+
+- The strong seasonal pattern has evolved to include both winter heating and summer cooling demands
+
+- Long-term growth appears to have plateaued in recent decades, possibly reflecting improved energy efficiency
+
+- The forecast suggests continuation of these patterns, with predictable seasonal fluctuations
+
+Time series analysis provides powerful tools for understanding patterns in data that change over time. For energy consumption, these insights could help utilities plan capacity, policymakers design energy efficiency programs, and consumers understand their usage patterns.
+
+
+

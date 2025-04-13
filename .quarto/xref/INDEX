@@ -25,5 +25,11 @@
   },
   "posts/2025-04-12-fishladder/index.qmd": {
     "index.html": "e4546101"
+  },
+  "posts/2025-03-13-energy/index.qmd": {
+    "index.html": "997ed5d5"
+  },
+  "posts/2025-03-13-energy/index.knit.md": {
+    "index.knit.html": "2be3247b"
   }
 }
