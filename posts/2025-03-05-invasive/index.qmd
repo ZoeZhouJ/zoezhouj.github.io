@@ -1,0 +1,240 @@
+---
+title: "Mapping Red Sesbania Invasion in California"
+author: "Zoe Zhou"
+date: 03-05-2025
+image: preview.jpg
+categories: [R, Spatial Analysis]
+format: 
+  html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+execute:
+  warning: false
+  message: false
+theme: minty
+---
+
+### About
+
+First introduced as an ornamental plant, red sesbania (Sesbania punicea) now threatens California's river systems, particularly in the Central Valley and Delta regions. It grows up to 15 feet tall with bright red-orange flowers that make it visually appealing but ecologically destructive. This post demonstrates how to use R to analyze California county geography and track the spread of an invasive plant species.
+
+
+### Setup
+To begin analyzing this species' distribution, I'll use R's spatial packages:
+```{r}
+library(tidyverse)
+library(here)
+library(broom)
+library(ggplot2)
+library(ggspatial)
+library(knitr)
+library(kableExtra)
+# Spatial data packages
+library(sf)
+```
+First, I'll import and clean the California county shapefile. When working with spatial data, knowing the coordinate reference system (CRS) is essential.
+
+```{r}
+#| output: false
+ca_counties_raw_sf <- read_sf(here("posts","2025-03-05-invasive","data", "ca_counties", "CA_Counties_TIGER2016.shp"))
+
+ca_counties_sf <- ca_counties_raw_sf %>% 
+  janitor::clean_names() %>% 
+  mutate(land_km2 = aland/1e6) %>% 
+  select(county=name, land_km2)
+
+ca_counties_sf |>  st_crs()
+```
+
+This shows we're using the "pseudo-mercator" projection based on WGS 84 (EPSG:3857), commonly used for web mapping applications.
+
+### Mapping California Counties
+```{r}
+# area as gradient just on california
+ggplot(ca_counties_sf)+
+  geom_sf(aes(fill = land_km2), color='white',size=0.1)+
+  theme_minimal() +
+  scale_fill_gradientn(colors = c("cyan","blue","purple"))
+  
+```
+
+### Analyzing Red Sesbania Distribution
+
+Read in invasive red sesbania records as spatial points and standardize their coordinate:
+
+```{r}
+# Read in data with sf
+sesbania_sf <- read_sf(here("posts","2025-03-05-invasive","data","red_sesbania","ds80_for_lab.gpkg")) |> 
+  janitor::clean_names()
+
+# Confirm CRS transformation
+sesbania_3857_sf <- st_transform(sesbania_sf, 3857)
+# Then check it: 
+#sesbania_3857_sf |>  st_crs() 
+```
+
+### Spatial Joining for Ecological Analysis
+
+The Big Question: Where is this plant located? I'm really curious about which counties have the most sesbania observations. Let's use a spatial join to figure this out:
+
+
+```{r}
+ca_sesb_sf <- ca_counties_sf |> 
+  st_join(sesbania_3857_sf)
+
+#head(ca_sesb_sf)
+```
+
+Now we can count observations by county. Use the CA polygons`sf` object with the CA polygons to summarize the total number of sesbania in each. Watch out for `NAs`!
+
+```{r}
+sesb_counts_sf <- ca_sesb_sf |> 
+  group_by(county) |> 
+  summarize(n_records = sum(!is.na(id)))
+
+# Show a table of top ten 
+sesb_counts_sf %>%
+  st_drop_geometry() %>%  # Crucial step to remove spatial component
+  arrange(desc(n_records)) %>%
+  slice_head(n = 10) %>%
+  kable(
+    format = "html",
+    col.names = c("County", "Number of Records"),
+    caption = "Top 10 Counties by SESB Record Count"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+### Mapping Red Sesbania Distribution by County
+
+Let's create a heat map showing which counties have the most sesbania records: we can plot a choropleth using the number of records for red sesbania as the fill color.
+
+```{r}
+
+ggplot(data = sesb_counts_sf) +
+  # Add a basemap for geographic context
+  annotation_map_tile(type = "osm", zoom = 6) +
+
+  # County polygons with transparency
+  geom_sf(aes(fill = n_records), 
+          color = "white", 
+          size = 0.1, 
+          alpha = 0.7) +
+
+  # Improved color gradient
+  scale_fill_gradientn(
+    colors = c("lightgray", "orange", "darkred"),
+    name = "Number of\nS. punicea Records"
+  ) +
+
+  # Professional theme
+  theme_minimal() +
+
+  # Comprehensive labels
+  labs(
+    title = "Spatial Distribution of S. punicea Records in California Counties",
+    subtitle = "Variation in Record Counts Across Counties",
+    fill = "Number of\nRecords"
+  ) +
+
+  # Additional theme refinements
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(face = "italic", size = 10),
+    plot.caption = element_text(size = 8, color = "gray50"),
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    axis.text = element_text(size = 8),
+    panel.background = element_rect(fill = "aliceblue", color = NA)
+  ) +
+
+  # Add scale bar and north arrow
+  annotation_scale(location = "bl") +
+  annotation_north_arrow(
+    location = "tr", 
+    which_north = "true",
+    pad_x = unit(0.2, "in"), 
+    pad_y = unit(0.2, "in"),
+    style = north_arrow_fancy_orienteering
+  )
+
+```
+This map really drives home the pattern: Sesbania appears to be concentrated along river systems in the Central Valley. I suspect the Sacramento-San Joaquin Delta might be facilitating its spread - water systems are like highways for invasive species! 
+
+### Zooming In: A Closer Look at Invasion Hotspots
+
+I wondered which counties are dealing with the most sesbania, so I identified the top county and created a focused map:
+
+```{r}
+#arrange(desc(as.data.frame(sesb_counts_sf)$n_records))
+#arrange(desc(sesb_counts_sf$n_records))
+
+sesb_counties_sf <- sesbania_3857_sf |> 
+  st_join(ca_counties_sf)
+
+# Subset of sesbania point locations only in Solano County
+
+county_max <- sesb_counts_sf %>%
+  filter(n_records == max(n_records)) %>%
+  pull(county)
+
+### we appended the county names to Sesbania records earlier:
+solano_sesb_sf <- sesb_counties_sf %>% 
+  filter(county == county_max) ### what if two counties had the same max value?
+
+# Only keep Solano polygon from California County data
+solano_sf <- ca_counties_sf %>% 
+  filter(county %in% county_max)
+
+ggplot() +
+  # Use a more visually appealing color palette
+  annotation_map_tile(type = "osm", zoom = 9) +
+  geom_sf(data = solano_sf, fill = "#E6F2FF", color = "#4A4A4A", linewidth = 0.5, alpha=0.7) +
+  geom_sf(data = solano_sesb_sf, color = 'red', size = 2) +
+
+  # Add a title and subtitle
+  labs(
+    title = "Solano County Map",
+    subtitle = "Highlighting Red Sesbania Locations",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+
+  # Improve overall theme
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
+    axis.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "#DDDDDD", linetype = "dashed")
+  ) +
+
+  # Add scale bar and north arrow
+  annotation_scale(location = "bl", width_hint = 0.5) +
+  annotation_north_arrow(
+    location = "tr", 
+    which_north = "true",
+    pad_x = unit(0.5, "in"), 
+    pad_y = unit(0.5, "in"),
+    style = north_arrow_fancy_orienteering
+  )
+
+```
+
+### Wrapping Up
+
+What started as a simple exploration of maps has revealed a compelling ecological story. Through the power of spatial analysis, we've been able to visualize both California's geography and the distribution of an invasive species threatening its ecosystems.
+
+The spatial analysis reveals that red sesbania is primarily concentrated along river systems in the Central Valley. This distribution pattern suggests water-based dispersal is a key factor in its spread, particularly in the Sacramento-San Joaquin Delta region.
+
+This type of spatial analysis has practical applications for: targeting removal efforts in invasion hotspots; predicting future spread patterns; allocating resources for invasive species management; and protecting vulnerable ecosystems from further invasion. 
+
+### Acknowledgements
+
+This analysis contains materials prepared by Nathan Grimes, Yutian Fang, Casey O'Hara and Allison Horst for the course ESM 244 - Advance Data Analysis. This course is part of the UCSB Masters in Environmental Science and Management. Data and other exercises can be access on this [Github Repository](https://github.com/nggrimes/esm-244-w25-lab7)
+
